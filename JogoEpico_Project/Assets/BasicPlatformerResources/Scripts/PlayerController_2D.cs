@@ -105,7 +105,7 @@ public class PlayerController_2D : MonoBehaviour
             normalCollider.enabled = false;
             dashCollider.enabled = true;
 
-            rb.velocity = new Vector3(dashForce, rb.velocity.y, 0);
+            rb.velocity = new Vector3(dashForce * Mathf.Sign(gfx.transform.localScale.x), rb.velocity.y, 0);
         }
 
         if (context.canceled)
@@ -133,7 +133,9 @@ public class PlayerController_2D : MonoBehaviour
 
             Bullet newBullet = Instantiate(bullet, bulletSpawnPoint, Quaternion.identity).GetComponent<Bullet>();
             newBullet.dir = (int) gfx.transform.localScale.x;
-            newBullet.speed = 1000;
+            newBullet.speed = 2000;
+
+            newBullet.gameObject.layer = LayerMask.NameToLayer("PlayerBullet");
         }
     }
 

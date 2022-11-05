@@ -26,5 +26,7 @@ public class Bullet : MonoBehaviour
         {
             Debug.Log("PLayer Hitted");
         }
+
+        Destroy(gameObject);
     }
 }
