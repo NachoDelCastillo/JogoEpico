@@ -42,7 +42,10 @@ public class PlayerController_2D : MonoBehaviour
     [SerializeField] CapsuleCollider2D dashCollider;
     bool pressingDash;
     float dashForce = 30;
-
+    // GrapplingHook
+    float grapplingHookVelocity = 50;
+    bool usingGrapplingHookInertia;
+    float grapplingHookInertiaSeconds = 0;
 
     // Shoot
     [SerializeField] Transform standPoint;
@@ -59,6 +62,21 @@ public class PlayerController_2D : MonoBehaviour
         UpdateFlipGfx();
 
         Jump_check();
+
+
+        if (grapplingHook != null)
+        {
+            if (Vector2.Distance(grapplingHook.position, transform.position) > 8)
+                grapplingHook = null;
+        }
+
+        if (grapplingHookInertiaSeconds > 0)
+        {
+            grapplingHookInertiaSeconds -= Time.deltaTime;
+
+            if (grapplingHookInertiaSeconds <= 0)
+                grapplingHookInertiaSeconds = 0;
+        }
 
 
         // Limit down velocity
@@ -100,15 +118,33 @@ public class PlayerController_2D : MonoBehaviour
     {
         if (context.started)
         {
-            pressingDash = true;
+            // Si hay algun gancho cerca, usarlo en vez de hacer un dash
+            if (grapplingHook != null)
+            {
+                Vector2 grappleDir = grapplingHook.position - transform.position;
 
-            normalCollider.enabled = false;
-            dashCollider.enabled = true;
+                grappleDir.Normalize();
 
-            rb.velocity = new Vector3(dashForce * Mathf.Sign(gfx.transform.localScale.x), rb.velocity.y, 0);
+                usingGrapplingHookInertia = true;
+                grapplingHookInertiaSeconds = .5f;
+
+                rb.velocity = Vector2.zero;
+                rb.velocity = grappleDir * grapplingHookVelocity;
+
+                canDoubleJump = true;
+            }
+            else
+            {
+                pressingDash = true;
+
+                normalCollider.enabled = false;
+                dashCollider.enabled = true;
+
+                rb.velocity = new Vector3(dashForce * Mathf.Sign(gfx.transform.localScale.x), rb.velocity.y, 0);
+            }
         }
 
-        if (context.canceled)
+        if (context.canceled && pressingDash)
         {
             pressingDash = false;
 
@@ -132,7 +168,7 @@ public class PlayerController_2D : MonoBehaviour
                 bulletSpawnPoint = crouchPoint.position;
 
             Bullet newBullet = Instantiate(bullet, bulletSpawnPoint, Quaternion.identity).GetComponent<Bullet>();
-            newBullet.dir = (int) gfx.transform.localScale.x;
+            newBullet.dir = (int)gfx.transform.localScale.x;
             newBullet.speed = 2000;
 
             newBullet.gameObject.layer = LayerMask.NameToLayer("PlayerBullet");
@@ -193,10 +229,12 @@ public class PlayerController_2D : MonoBehaviour
         // And then smoothing it out and applying it to the character
 
 
-        if (!pressingDash)
-            rb.velocity = Vector3.SmoothDamp(rb.velocity, targetVelocity, ref m_Velocity, smoothTime);
-        else
+        if (pressingDash)
             rb.velocity = Vector3.SmoothDamp(rb.velocity, targetVelocity, ref m_Velocity, .4f);
+        else if (grapplingHookInertiaSeconds > 0)
+            rb.velocity = Vector3.SmoothDamp(rb.velocity, targetVelocity, ref m_Velocity, .5f);
+        else
+            rb.velocity = Vector3.SmoothDamp(rb.velocity, targetVelocity, ref m_Velocity, smoothTime);
     }
 
     void CheckGround()
@@ -255,4 +293,23 @@ public class PlayerController_2D : MonoBehaviour
 
     #endregion
 
+    #region Grappling Hook
+
+    Transform grapplingHook;
+
+    public void GrapplingHookEnteredArea(OnTriggerDelegation delegation)
+    {
+        if (delegation.Other.gameObject.layer != LayerMask.NameToLayer("GrapplingHook")) return;
+
+        grapplingHook = delegation.Other.transform;
+    }
+
+    //public void GrapplingHookExitedArea(OnTriggerDelegation delegation)
+    //{
+    //    if (delegation.Other.gameObject.layer == LayerMask.NameToLayer("GrapplingHook")) return;
+
+    //    grapplingHook = null;
+    //}
+
+    #endregion
 }
